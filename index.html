@@ -203,6 +203,35 @@
       margin-top: 16px;
       text-align: right;
     }
+
+    .stats-bar {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .stat-chip {
+      flex: 1;
+      min-width: 80px;
+      text-align: center;
+      padding: 10px 8px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+    }
+    .stat-chip .num {
+      display: block;
+      font-size: 22px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    .stat-chip .label {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .stat-chip.overdue .num { color: #dc2626; }
+    .stat-chip.today .num { color: #ea580c; }
+    .stat-chip.done .num { color: #22c55e; }
   </style>
 </head>
 <body>
@@ -231,6 +260,7 @@
 
     <ul id="todoList"></ul>
     <div class="empty" id="emptyState" style="display:none">暂无待办事项，添加一条吧</div>
+    <div id="statsBar" class="stats-bar"></div>
     <p id="stats"></p>
   </div>
 
@@ -398,6 +428,16 @@
 
       const left = todos.filter(t => !t.completed).length;
       stats.textContent = left + " 项待办 · " + done + " 项已完成";
+
+      // 统计卡片
+      const overdue = todos.filter(t => !t.completed && t.due && daysBetween(t.due) < 0).length;
+      const today = todos.filter(t => !t.completed && t.due && daysBetween(t.due) === 0).length;
+      document.getElementById("statsBar").innerHTML =
+        '<div class="stat-chip"><span class="num">' + todos.length + '</span><span class="label">全部</span></div>' +
+        '<div class="stat-chip"><span class="num">' + left + '</span><span class="label">进行中</span></div>' +
+        '<div class="stat-chip done"><span class="num">' + done + '</span><span class="label">已完成</span></div>' +
+        '<div class="stat-chip today"><span class="num">' + today + '</span><span class="label">今天截止</span></div>' +
+        '<div class="stat-chip overdue"><span class="num">' + overdue + '</span><span class="label">已过期</span></div>';
     }
 
     function addTodo() {
