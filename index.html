@@ -241,13 +241,19 @@
     }
 
     function completeAll() {
+      // 没有待办，或已经全部完成，就什么都不做
+      if (todos.length === 0) return;
+      if (todos.every(t => t.completed)) return;
+
       todos.forEach(todo => { todo.completed = true; });
       saveTodos();
       renderTodos();
     }
 
     function renderTodos() {
-      completeAllButton.disabled = todos.every(todo => todo.completed);
+      const allDone = todos.length > 0 && todos.every(todo => todo.completed);
+      completeAllButton.disabled = allDone;
+      completeAllButton.textContent = allDone ? "✓ 已全部完成" : "全部完成";
       todoList.innerHTML = "";
 
       let overdueCount = 0;
