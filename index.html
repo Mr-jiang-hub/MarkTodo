@@ -256,6 +256,7 @@
       <button id="completeAllButton" class="secondary">全部完成</button>
       <button id="clearCompletedButton" class="secondary">清空已完成</button>
       <button id="exportButton" class="secondary">导出</button>
+      <button id="timeButton" class="secondary">当前时间</button>
     </div>
 
     <ul id="todoList"></ul>
@@ -454,6 +455,13 @@
     completeAllButton.addEventListener("click", completeAll);
     clearCompletedButton.addEventListener("click", clearCompleted);
     exportButton.addEventListener("click", exportTodos);
+    document.getElementById("timeButton").addEventListener("click", () => {
+      const now = new Date();
+      const pad = n => String(n).padStart(2, "0");
+      const time = now.getFullYear() + "-" + pad(now.getMonth()+1) + "-" + pad(now.getDate())
+        + " " + pad(now.getHours()) + ":" + pad(now.getMinutes()) + ":" + pad(now.getSeconds());
+      todayEl.textContent = "现在是 " + time;
+    });
     todoInput.addEventListener("keydown", e => { if (e.key === "Enter") addTodo(); });
 
     renderTodos();
