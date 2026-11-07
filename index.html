@@ -11,6 +11,7 @@
       padding: 0 20px;
       background: #f7f7f7;
       color: #222;
+      font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
     }
 
     .app {
@@ -24,21 +25,66 @@
       margin-top: 0;
     }
 
+    .banner {
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+    .banner.overdue {
+      display: block;
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+
     .input-row {
       display: flex;
       gap: 10px;
       margin-bottom: 24px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .input-row label {
+      font-size: 14px;
+      color: #666;
     }
 
     input[type="text"] {
       flex: 1;
+      min-width: 200px;
       padding: 10px 12px;
       font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+    }
+
+    input[type="date"] {
+      padding: 10px 12px;
+      font-size: 16px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
     }
 
     button {
       padding: 10px 16px;
       cursor: pointer;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    button.secondary {
+      background: #f3f4f6;
+      color: #333;
+    }
+
+    button:hover {
+      opacity: 0.9;
     }
 
     button:disabled {
@@ -73,19 +119,34 @@
       text-decoration: none;
     }
 
-    input[type="date"] {
-      padding: 10px 12px;
-      font-size: 16px;
-    }
-
     li .due {
       flex: none;
-      font-size: 14px;
-      color: #888;
+      font-size: 13px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: #f3f4f6;
+      color: #666;
     }
 
     li .due.overdue {
-      color: #d92c2c;
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+
+    li .due.today {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    li .due.tomorrow {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    #stats {
+      color: #888;
+      font-size: 14px;
+      margin-top: 16px;
     }
   </style>
 </head>
@@ -93,14 +154,17 @@
   <div class="app">
     <h1>马克待办</h1>
 
+    <div id="overdueBanner" class="banner"></div>
+
     <div class="input-row">
       <input id="todoInput" type="text" placeholder="输入一个待办事项">
+      <label for="dueInput">截止：</label>
       <input id="dueInput" type="date">
       <button id="addButton">添加</button>
-      <button id="sortButton">排序</button>
-      <button id="completeAllButton">全部完成</button>
-      <button id="clearCompletedButton">清空已完成</button>
-      <button id="exportButton">导出</button>
+      <button id="sortButton" class="secondary">排序 ↑</button>
+      <button id="completeAllButton" class="secondary">全部完成</button>
+      <button id="clearCompletedButton" class="secondary">清空已完成</button>
+      <button id="exportButton" class="secondary">导出</button>
     </div>
 
     <ul id="todoList"></ul>
@@ -113,39 +177,63 @@
     const todoList = document.getElementById("todoList");
     const sortButton = document.getElementById("sortButton");
     const stats = document.getElementById("stats");
-
     const dueInput = document.getElementById("dueInput");
     const completeAllButton = document.getElementById("completeAllButton");
     const clearCompletedButton = document.getElementById("clearCompletedButton");
     const exportButton = document.getElementById("exportButton");
+    const overdueBanner = document.getElementById("overdueBanner");
 
-    const todos = [
-      { text: "关注「马克的技术工作坊」", completed: false },
-      { text: "给这期 Git 教程点赞", completed: true }
-    ];
+    // 从 localStorage 读取，没有就用默认数据
+    let todos;
+    try {
+      todos = JSON.parse(localStorage.getItem("markTodos")) || [
+        { text: "关注「马克的技术工作坊」", completed: false, due: "" },
+        { text: "给这期 Git 教程点赞", completed: true, due: "" }
+      ];
+    } catch (e) {
+      todos = [];
+    }
 
-    function isOverdue(todo) {
-      if (!todo.due || todo.completed) {
-        return false;
-      }
+    function saveTodos() {
+      localStorage.setItem("markTodos", JSON.stringify(todos));
+    }
 
-      const today = new Date().toISOString().slice(0, 10);
-      return todo.due < today;
+    function todayStr() {
+      const d = new Date();
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    }
+
+    function daysBetween(dueDate) {
+      // 今天 00:00 到 dueDate 00:00 的天数差
+      const today = new Date(todayStr());
+      const due = new Date(dueDate);
+      return Math.round((due - today) / 86400000);
+    }
+
+    function dueLabel(todo) {
+      if (!todo.due) return { text: "", cls: "" };
+      if (todo.completed) return { text: todo.due, cls: "" };
+
+      const diff = daysBetween(todo.due);
+      if (diff < 0) return { text: "已过期 " + (-diff) + " 天", cls: "overdue" };
+      if (diff === 0) return { text: "今天截止", cls: "today" };
+      if (diff === 1) return { text: "明天截止", cls: "tomorrow" };
+      return { text: "还有 " + diff + " 天", cls: "" };
     }
 
     function clearCompleted() {
       const remaining = todos.filter(todo => !todo.completed);
-
       todos.length = 0;
       todos.push(...remaining);
-
+      saveTodos();
       renderTodos();
     }
 
     function exportTodos() {
-      const lines = todos.map(todo => todo.text);
-
-      const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+      const lines = todos.map(todo =>
+        (todo.completed ? "[x] " : "[ ] ") + todo.text + (todo.due ? " (" + todo.due + ")" : "")
+      );
+      const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = "马克待办.txt";
@@ -153,10 +241,8 @@
     }
 
     function completeAll() {
-      todos.forEach(todo => {
-        todo.completed = true;
-      });
-
+      todos.forEach(todo => { todo.completed = true; });
+      saveTodos();
       renderTodos();
     }
 
@@ -164,19 +250,18 @@
       completeAllButton.disabled = todos.every(todo => todo.completed);
       todoList.innerHTML = "";
 
+      let overdueCount = 0;
+
       todos.forEach((todo, index) => {
         const li = document.createElement("li");
-
-        if (todo.completed) {
-          li.classList.add("completed");
-        }
+        if (todo.completed) li.classList.add("completed");
 
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
         checkbox.checked = todo.completed;
-
         checkbox.addEventListener("change", () => {
           todos[index].completed = checkbox.checked;
+          saveTodos();
           renderTodos();
         });
 
@@ -185,17 +270,18 @@
 
         const due = document.createElement("span");
         due.className = "due";
-        due.textContent = todo.due ? todo.due : "";
-        if (isOverdue(todo)) {
-          due.classList.add("overdue");
-          due.textContent = todo.due + " 已过期";
-        }
+        const label = dueLabel(todo);
+        due.textContent = label.text;
+        if (label.cls) due.classList.add(label.cls);
+
+        if (label.cls === "overdue") overdueCount++;
 
         const deleteButton = document.createElement("button");
         deleteButton.textContent = "删除";
-
+        deleteButton.className = "secondary";
         deleteButton.addEventListener("click", () => {
           todos.splice(index, 1);
+          saveTodos();
           renderTodos();
         });
 
@@ -203,63 +289,58 @@
         li.appendChild(text);
         li.appendChild(due);
         li.appendChild(deleteButton);
-
         todoList.appendChild(li);
       });
 
+      // 顶部过期提醒横幅
+      if (overdueCount > 0) {
+        overdueBanner.textContent = "⚠ 有 " + overdueCount + " 项待办已过期，请尽快处理";
+        overdueBanner.classList.add("overdue");
+      } else {
+        overdueBanner.textContent = "";
+        overdueBanner.classList.remove("overdue");
+      }
+
       const left = todos.filter(todo => !todo.completed).length;
-      stats.textContent = `共 ${todos.length} 项，还剩 ${left} 项没完成`;
+      stats.textContent = "共 " + todos.length + " 项，还剩 " + left + " 项没完成";
     }
 
     let sortAsc = true;
-
     function sortByDue() {
       todos.sort((a, b) => {
-        if (!a.due) {
-          return 1;
-        }
-
-        if (!b.due) {
-          return -1;
-        }
-
+        if (!a.due) return 1;
+        if (!b.due) return -1;
         return (a.due < b.due) === sortAsc ? -1 : 1;
       });
-
       sortButton.textContent = sortAsc ? "排序 ↑" : "排序 ↓";
       sortAsc = !sortAsc;
-
+      saveTodos();
       renderTodos();
     }
 
     function addTodo() {
       const text = todoInput.value.trim();
-
-      if (!text) {
-        return;
-      }
+      if (!text) return;
 
       todos.push({
-        text,
+        text: text,
         completed: false,
         due: dueInput.value
       });
 
       dueInput.value = "";
       todoInput.value = "";
+      saveTodos();
       renderTodos();
     }
 
     addButton.addEventListener("click", addTodo);
     sortButton.addEventListener("click", sortByDue);
-
     completeAllButton.addEventListener("click", completeAll);
     clearCompletedButton.addEventListener("click", clearCompleted);
     exportButton.addEventListener("click", exportTodos);
     todoInput.addEventListener("keydown", event => {
-      if (event.key === "Enter") {
-        addTodo();
-      }
+      if (event.key === "Enter") addTodo();
     });
 
     renderTodos();
